@@ -442,6 +442,7 @@ template <class Key, class T, class Hash = std::hash<Key>,
 class linked_hashmap : public hashmap<Key, T, Hash, Equal> {
 public:
   typedef pair<const Key, T> value_type;
+  double_list<value_type> dl;
   /**
    * elements
    * add whatever you want
@@ -450,129 +451,309 @@ public:
   class const_iterator;
   class iterator {
   public:
+    linked_hashmap *lhm;
+    int idx;
     /**
      * elements
      * add whatever you want
      */
     // --------------------------
-    iterator() {}
-    iterator(const iterator &other) {}
-    ~iterator() {}
+    iterator(linked_hashmap *lhm = nullptr, int idx = -1)
+        : lhm(lhm), idx(idx) {}
+    iterator(const iterator &other) {
+      if (this == &other)
+        return;
+      lhm = other.lhm;
+      idx = other.idx;
+    }
+    ~iterator(){} = default;
 
     /**
      * iter++
      */
-    iterator operator++(int) {}
+    iterator operator++(int) {
+      iterator temp = *this;
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].next;
+      return temp;
+    }
     /**
      * ++iter
      */
-    iterator &operator++() {}
+    iterator &operator++() {
+      iterator temp = *this;
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].next;
+      return *this;
+    }
     /**
      * iter--
      */
-    iterator operator--(int) {}
+    iterator operator--(int) {
+      iterator temp = *this;
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].prev;
+      return temp;
+    }
     /**
      * --iter
      */
-    iterator &operator--() {}
+    iterator &operator--() {
+      iterator temp = *this;
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].prev;
+    }
 
     /**
      * if the iter didn't point to a value
      * throw "star invalid"
      */
-    value_type &operator*() const {}
-    value_type *operator->() const noexcept {}
+    value_type &operator*() const {
+      if (this == nullptr)
+        throw "star invalid";
+      return lhm->data[idx].kv;
+    }
+    value_type *operator->() const noexcept {
+      if (this == nullptr)
+        throw "star invalid";
+      return &(lhm->data[idx].kv);
+    }
 
     /**
      * operator to check whether two iterators are same (pointing to the same
      * memory).
      */
-    bool operator==(const iterator &rhs) const {}
-    bool operator!=(const iterator &rhs) const {}
-    bool operator==(const const_iterator &rhs) const {}
-    bool operator!=(const const_iterator &rhs) const {}
+    bool operator==(const iterator &rhs) const {
+      if (this == &rhs)
+        return true;
+      if (lhm != rhs.lhm)
+        return false;
+      return idx == rhs.idx;
+    }
+    bool operator!=(const iterator &rhs) const {
+      if (this == &rhs)
+        return false;
+      if (lhm != rhs.lhm)
+        return true;
+      return idx != rhs.idx;
+    }
+    bool operator==(const const_iterator &rhs) const {
+      if (this == &rhs)
+        return true;
+      if (lhm != rhs.lhm)
+        return false;
+      return idx == rhs.idx;
+    }
+    bool operator!=(const const_iterator &rhs) const {
+      if (this == &rhs)
+        return false;
+      if (lhm != rhs.lhm)
+        return true;
+      return idx != rhs.idx;
+    }
   };
 
   class const_iterator {
   public:
+    linked_hashmap *lhm;
+    int idx;
+
     /**
      * elements
      * add whatever you want
      */
     // --------------------------
-    const_iterator() {}
-    const_iterator(const iterator &other) {}
+    const_iterator(linked_hashmap *lhm, int idx) : lhm(lhm), idx(idx) {}
+    const_iterator(const iterator &other) {
+      if (this == &other)
+        return;
+      lhm = other.lhm;
+      idx = other.idx;
+    }
 
     /**
      * iter++
      */
-    const_iterator operator++(int) {}
+    const_iterator operator++(int) {
+      const_iterator temp = *this;
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].next;
+      return temp;
+    }
     /**
      * ++iter
      */
-    const_iterator &operator++() {}
+    const_iterator &operator++() {
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].next;
+      return *this;
+    }
     /**
      * iter--
      */
-    const_iterator operator--(int) {}
+    const_iterator operator--(int) {
+      const_iterator temp = *this;
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].prev;
+      return temp;
+    }
     /**
      * --iter
      */
-    const_iterator &operator--() {}
+    const_iterator &operator--() {
+      if (idx == -1)
+        throw exception("invalid");
+      idx = lhm->data[idx].prev;
+      return *this;
+    }
 
     /**
      * if the iter didn't point to a value
      * throw
      */
-    const value_type &operator*() const {}
-    const value_type *operator->() const noexcept {}
+    const value_type &operator*() const {
+      if (this == nullptr)
+        throw "star invalid";
+      return lhm->data[idx].kv;
+    }
+    const value_type *operator->() const noexcept {
+      if (this == nullptr)
+        throw "star invalid";
+      return &(lhm->data[idx].kv);
+    }
 
     /**
      * operator to check whether two iterators are same (pointing to the same
      * memory).
      */
-    bool operator==(const iterator &rhs) const {}
-    bool operator!=(const iterator &rhs) const {}
-    bool operator==(const const_iterator &rhs) const {}
-    bool operator!=(const const_iterator &rhs) const {}
+    bool operator==(const iterator &rhs) const {
+      if (this == &rhs)
+        return true;
+      if (lhm != rhs.lhm)
+        return false;
+      return idx == rhs.idx;
+    }
+    bool operator!=(const iterator &rhs) const {
+      if (this == &rhs)
+        return false;
+      if (lhm != rhs.lhm)
+        return true;
+      return idx != rhs.idx;
+    }
+    bool operator==(const const_iterator &rhs) const {
+      if (this == &rhs)
+        return true;
+      if (lhm != rhs.lhm)
+        return false;
+      return idx == rhs.idx;
+    }
+    bool operator!=(const const_iterator &rhs) const {
+      if (this == &rhs)
+        return false;
+      if (lhm != rhs.lhm)
+        return true;
+      return idx != rhs.idx;
+    }
   };
 
-  linked_hashmap() {}
-  linked_hashmap(const linked_hashmap &other) {}
-  ~linked_hashmap() {}
-  linked_hashmap &operator=(const linked_hashmap &other) {}
+  linked_hashmap(){} = default;
+  linked_hashmap(const linked_hashmap &other) {
+    if (this == &other)
+      return;
+    dl = other.dl;
+  }
+  ~linked_hashmap(){} = default;
+  linked_hashmap &operator=(const linked_hashmap &other) {
+    if (this == &other)
+      return *this;
+    dl = other.dl;
+    return *this;
+  }
 
   /**
    * return the value connected with the Key(O(1))
    * if the key not found, throw
    */
-  T &at(const Key &key) {}
-  const T &at(const Key &key) const {}
-  T &operator[](const Key &key) {}
-  const T &operator[](const Key &key) const {}
+  T &at(const Key &key) {
+    auto it = this->find(key);
+    if (it == -1)
+      throw "invalid";
+    return dl.data[it].kv.second;
+  }
+  const T &at(const Key &key) const {
+    auto it = this->find(key);
+    if (it == -1)
+      throw "invalid";
+    return dl.data[it].kv.second;
+  }
+  T &operator[](const Key &key) {
+    auto it = hashmap<Key, T, Hash, Equal>::find(key);
+    if (it == hashmap<Key, T, Hash, Equal>::end()) {
+      auto res = hashmap<Key, T, Hash, Equal>::insert(value_type(key, T()));
+      dl.insert_head(*res.first);
+      return res.first->second;
+    }
+    return it->second;
+  }
+  const T &operator[](const Key &key) const {
+    auto it = this->find(key);
+    if (it == this->end())
+      throw "invalid";
+    return it->second;
+  }
 
   /**
    * return an iterator point to the first
    * inserted and existed element
    */
-  iterator begin() {}
-  const_iterator cbegin() const {}
+  iterator begin() {
+    if (dl.head == nullptr)
+      return iterator(this, -1);
+    return iterator(this, dl.head);
+  }
+  const_iterator cbegin() const {
+    if (dl.head == nullptr)
+      return const_iterator(this, -1);
+    return const_iterator(this, dl.head);
+  }
   /**
    * return an iterator after the last inserted element
    */
-  iterator end() {}
-  const_iterator cend() const {}
+  iterator end() {
+    if (dl.tail == nullptr)
+      return iterator(this, -1);
+    return iterator(this, dl.tail);
+  }
+  const_iterator cend() const {
+    if (dl.tail == nullptr)
+      return const_iterator(this, -1);
+    return const_iterator(this, dl.tail);
+  }
   /**
    * if didn't contain anything, return true,
    * otherwise false.
    */
-  bool empty() const {}
+  bool empty() const {
+    if (dl.size == 0)
+      return true;
+    return false;
+  }
 
-  void clear() {}
+  void clear() {
+    dl.clear();
+    this->clear();
+  }
 
-  size_t size() const {}
+  size_t size() const { return dl.size; }
   /**
-   * insert the value_piar
+   * insert the value_pair
    * if the key of the value_pair exists in the map
    * update the value instead of adding a new element，
    * then the order of the element moved from inner of the
@@ -581,25 +762,50 @@ public:
    * if the key of the value_pair doesn't exist in the map
    * add a new element and return true
    */
-  pair<iterator, bool> insert(const value_type &value) {}
+  pair<iterator, bool> insert(const value_type &value) {
+    auto it = this->find(value.first);
+    if (it != this->end()) {
+      dl.erase(it);
+      dl.insert_head(value);
+      return {iterator(this, dl.head), false};
+    }
+    auto res = hashmap<Key, T, Hash, Equal>::insert(value);
+    dl.insert_head(value);
+    return {iterator(this, dl.head), true};
+  }
   /**
    * erase the value_pair pointed by the iterator
    * if the iterator points to nothing
    * throw
    */
-  void remove(iterator pos) {}
+  void remove(iterator pos) {
+    if (pos.idx == -1)
+      throw "invalid";
+    hashmap<Key, T, Hash, Equal>::erase(pos->first);
+    dl.erase(pos);
+  }
   /**
    * return how many value_pairs consist of key
    * this should only return 0 or 1
    */
-  size_t count(const Key &key) const {}
+  size_t count(const Key &key) const {
+    auto it = hashmap<Key, T, Hash, Equal>::find(key);
+    if (it == this->end())
+      return 0;
+    return 1;
+  }
   /**
    * find the iterator points at the value_pair
    * which consist of key
    * if not find, return the iterator
    * point at nothing
    */
-  iterator find(const Key &key) {}
+  iterator find(const Key &key) {
+    auto it = hashmap<Key, T, Hash, Equal>::find(key);
+    if (it == this->end())
+      return iterator(this, -1);
+    return iterator(this, it);
+  }
 };
 /******************************/
 class lru {
