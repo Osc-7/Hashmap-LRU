@@ -19,9 +19,18 @@ public:
     return lhs.val == rhs.val;
   }
 };
-
+/******************************/
 namespace sjtu {
 template <class T> class double_list {
+private:
+  struct node {
+    T val;
+    node *prev;
+    node *next;
+    node(const T &val, node *prev = nullptr, node *next = nullptr)
+        : val(val), prev(prev), next(next) {}
+  };
+
 public:
   int size;
   node *head;
@@ -36,12 +45,21 @@ public:
    * the follows are constructors and destructors
    * you can also add some if needed.
    */
-  double_list() {}
-  double_list(const double_list<T> &other) {}
-  ~double_list() {}
+  double_list(int size, node *head, node *tail)
+      : size(size), head(head), tail(tail) {}
+  double_list(const double_list<T> &other) {
+    if (this == &other)
+      return;
+    size = other.size;
+    head = other.head;
+    tail = other.tail;
+  }
+  ~double_list(){} = default;
 
   class iterator {
   public:
+    double_list *dl;
+    node *ptr;
     /**
      * elements
      * add whatever you want
@@ -51,47 +69,109 @@ public:
      * the follows are constructors and destructors
      * you can also add some if needed.
      */
-    iterator() {}
-    iterator(const iterator &t) {}
-    ~iterator() {}
+    iterator(double_list *dl = nullptr, node *ptr = nullptr)
+        : dl(dl), ptr(ptr) {}
+    iterator(const iterator &t) {
+      if (this == &t)
+        return;
+      dl = t.dl;
+      ptr = t.ptr;
+    }
+    ~iterator() {
+      for (node *p = dl->head; p != nullptr; p = p->next) {
+        delete p;
+      }
+      dl = nullptr;
+      ptr = nullptr;
+    }
     /**
      * iter++
      */
-    iterator operator++(int) {}
+    iterator operator++(int) {
+      iterator tmp = *this;
+      if (ptr == nullptr)
+        throw "invalid";
+      ptr = ptr->next;
+      return tmp;
+    }
     /**
      * ++iter
      */
-    iterator &operator++() {}
+    iterator &operator++() {
+      if (ptr == nullptr)
+        throw "invalid";
+      ptr = ptr->next;
+      return *this;
+    }
     /**
      * iter--
      */
-    iterator operator--(int) {}
+    iterator operator--(int) {
+      iterator temp = *this;
+      if (ptr == nullptr)
+        throw "invalid";
+
+      ptr = ptr->prev;
+      return temp;
+    }
     /**
      * --iter
      */
-    iterator &operator--() {}
+    iterator &operator--() {
+      iterator temp = *this;
+
+      if (ptr == nullptr)
+        throw "invalid";
+      ptr = ptr->prev;
+      return *this;
+    }
     /**
      * if the iter didn't point to a value
      * throw " invalid"
      */
-    T &operator*() const {}
+    T &operator*() const {
+      if (ptr == nullptr)
+        throw "invalid";
+      return ptr->val;
+    }
     /**
      * other operation
      */
-    T *operator->() const noexcept {}
-    bool operator==(const iterator &rhs) const {}
-    bool operator!=(const iterator &rhs) const {}
+    T *operator->() const noexcept {
+      if (ptr == nullptr)
+        throw "invalid";
+      return &(ptr->val);
+    }
+    bool operator==(const iterator &rhs) const {
+      if (this == &rhs)
+        return true;
+      if (dl != rhs.dl)
+        return false;
+      return ptr == rhs.ptr;
+    }
+    bool operator!=(const iterator &rhs) const {
+      if (this == &rhs)
+        return false;
+
+      if (dl != rhs.dl)
+        return true;
+      return ptr != rhs.ptr;
+    }
   };
   /**
    * return an iterator to the beginning
    */
-  iterator begin() {}
+  iterator begin() {
+    if (head == nullptr)
+      return iterator(this, nullptr);
+    return iterator(this, head);
+  }
   /**
    * return an iterator to the ending
    * in fact, it returns the iterator point to nothing,
    * just after the last element.
    */
-  iterator end() {}
+  iterator end() { return iterator(this, nullptr); }
   /**
    * if the iter didn't point to anything, do nothing,
    * otherwise, delete the element pointed by the iter
@@ -103,22 +183,73 @@ public:
    *  or nothing if the list after the operation
    *  don't contain 2nd elememt.
    */
-  iterator erase(iterator pos) {}
+  iterator erase(iterator pos) {
+    if (pos.ptr == nullptr)
+      return end();
+    node *p = pos.ptr;
+    node *prev = p->prev;
+    node *next = p->next;
+    if (prev != nullptr)
+      prev->next = next;
+    if (next != nullptr) {
+      next->prev = prev;
+      return iterator(this, next);
+    }
+    return end();
+  }
 
   /**
    * the following are operations of double list
    */
-  void insert_head(const T &val) {}
-  void insert_tail(const T &val) {}
-  void delete_head() {}
-  void delete_tail() {}
+  void insert_head(const T &val) {
+    node *new_node = new node(val, nullptr, head);
+    if (head != nullptr)
+      head->prev = new_node;
+    head = new_node;
+    if (tail == nullptr)
+      tail = head;
+    size++;
+  }
+  void insert_tail(const T &val) {
+    node *new_node = new node(val, tail, nullptr);
+    if (tail != nullptr)
+      tail->next = new_node;
+    tail = new_node;
+    if (head == nullptr)
+      head = tail;
+    size++;
+  }
+  void delete_head() {
+    if (head == nullptr)
+      return;
+    node *temp = head;
+    head = head->next;
+    if (head != nullptr)
+      head->prev = nullptr;
+    delete temp;
+    size--;
+  }
+  void delete_tail() {
+    if (tail == nullptr)
+      return;
+    node *temp = tail;
+    tail = tail->prev;
+    if (tail != nullptr)
+      tail->next = nullptr;
+    delete temp;
+    size--;
+  }
   /**
    * if didn't contain anything, return true,
    * otherwise false.
    */
-  bool empty() {}
+  bool empty() {
+    if (size == 0)
+      return true;
+    return false;
+  }
 };
-
+/******************************/
 template <class Key, class T, class Hash = std::hash<Key>,
           class Equal = std::equal_to<Key>>
 class hashmap {
@@ -245,8 +376,6 @@ public:
     data = std::move(new_data);
   }
 
-  iterator begin() const {}
-
   /**
    * the iterator point at nothing
    */
@@ -307,7 +436,7 @@ public:
     return false;
   }
 };
-
+/******************************/
 template <class Key, class T, class Hash = std::hash<Key>,
           class Equal = std::equal_to<Key>>
 class linked_hashmap : public hashmap<Key, T, Hash, Equal> {
@@ -472,7 +601,7 @@ public:
    */
   iterator find(const Key &key) {}
 };
-
+/******************************/
 class lru {
   using lmap = sjtu::linked_hashmap<Integer, Matrix<int>, Hash, Equal>;
   using value_type = sjtu::pair<const Integer, Matrix<int>>;
