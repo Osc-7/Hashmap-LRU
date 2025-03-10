@@ -35,50 +35,35 @@ public:
   int size;
   node *head;
   node *tail;
-  /**
-   * elements
-   * add whatever you want
-   */
-
-  // --------------------------
-  /**
-   * the follows are constructors and destructors
-   * you can also add some if needed.
-   */
+  double_list() : size(0), head(nullptr), tail(nullptr) {}
   double_list(int size, node *head, node *tail)
       : size(size), head(head), tail(tail) {}
-  double_list(const double_list<T> &other) {
-    if (this == &other)
-      return;
-    size = other.size;
-    head = other.head;
-    tail = other.tail;
-  }
-  ~double_list() {
-    node *cur = head;
-    while (cur != nullptr) {
-      node *next_node = cur->next;
-      delete cur;
-      cur = next_node;
+  // 深拷贝的拷贝构造函数
+  double_list(const double_list<T> &other)
+      : size(0), head(nullptr), tail(nullptr) {
+    for (const_iterator it = other.cbegin(); it != other.cend(); ++it) {
+      insert_tail(*it);
     }
-    head = tail = nullptr;
-    size = 0;
   }
+  // 赋值运算符重载
+  double_list<T> &operator=(const double_list<T> &other) {
+    if (this != &other) {
+      clear();
+      for (const_iterator it = other.cbegin(); it != other.cend(); ++it) {
+        insert_tail(*it);
+      }
+    }
+    return *this;
+  }
+  ~double_list() { clear(); }
   class iterator {
   public:
     double_list *dl;
     node *ptr;
-    /**
-     * elements
-     * add whatever you want
-     */
-    // --------------------------
-    /**
-     * the follows are constructors and destructors
-     * you can also add some if needed.
-     */
+
     iterator(double_list *dl = nullptr, node *ptr = nullptr)
         : dl(dl), ptr(ptr) {}
+    iterator(node *node) : ptr(node) {}
     iterator(const iterator &t) {
       if (this == &t)
         return;
@@ -93,6 +78,8 @@ public:
       iterator tmp = *this;
       if (ptr == nullptr)
         throw "invalid";
+      if (*this == dl->end())
+        throw "invalid";
       ptr = ptr->next;
       return tmp;
     }
@@ -101,6 +88,8 @@ public:
      */
     iterator &operator++() {
       if (ptr == nullptr)
+        throw "invalid";
+      if (*this == dl->end())
         throw "invalid";
       ptr = ptr->next;
       return *this;
@@ -112,7 +101,8 @@ public:
       iterator temp = *this;
       if (ptr == nullptr)
         throw "invalid";
-
+      if (*this == dl->begin())
+        throw "invalid";
       ptr = ptr->prev;
       return temp;
     }
@@ -123,6 +113,8 @@ public:
       iterator temp = *this;
 
       if (ptr == nullptr)
+        throw "invalid";
+      if (*this == dl->begin())
         throw "invalid";
       ptr = ptr->prev;
       return *this;
@@ -157,11 +149,7 @@ public:
     /**
      * other operation
      */
-    T *operator->() const noexcept {
-      if (ptr == nullptr)
-        throw "invalid";
-      return &(ptr->val);
-    }
+    T *operator->() const noexcept { return &(ptr->val); }
     bool operator==(const iterator &rhs) const {
       if (this == &rhs)
         return true;
@@ -178,6 +166,95 @@ public:
       return ptr != rhs.ptr;
     }
   };
+
+  class const_iterator {
+  public:
+    const double_list *dl; // 关联的双向链表
+    node *ptr;             // 当前指向的节点
+
+    const_iterator(const double_list *dl = nullptr, node *ptr = nullptr)
+        : dl(dl), ptr(ptr) {}
+    const_iterator(const const_iterator &t) = default;
+    ~const_iterator() = default;
+
+    const_iterator operator++(int) {
+      const_iterator tmp = *this;
+      if (ptr == nullptr)
+        throw "invalid";
+      if (*this == dl->cend())
+        throw "invalid";
+      ptr = ptr->next;
+      return tmp;
+    }
+
+    const_iterator &operator++() {
+      if (ptr == nullptr)
+        throw "invalid";
+      if (*this == dl->cend())
+        throw "invalid";
+      ptr = ptr->next;
+      return *this;
+    }
+
+    const_iterator operator--(int) {
+      const_iterator temp = *this;
+      if (ptr == nullptr)
+        throw "invalid";
+      if (*this == dl->cbegin())
+        throw "invalid";
+      ptr = ptr->prev;
+      return temp;
+    }
+
+    const_iterator &operator--() {
+      if (ptr == nullptr)
+        throw "invalid";
+      if (*this == dl->cbegin())
+        throw "invalid";
+      ptr = ptr->prev;
+      return *this;
+    }
+
+    const_iterator operator+(int n) const {
+      const_iterator temp = *this;
+      if (n < 0) {
+        for (int i = 0; i < -n; i++) {
+          if (temp.ptr == nullptr)
+            throw "invalid";
+          temp.ptr = temp.ptr->prev;
+        }
+      } else {
+        for (int i = 0; i < n; i++) {
+          if (temp.ptr == nullptr)
+            throw "invalid";
+          temp.ptr = temp.ptr->next;
+        }
+      }
+      return temp;
+    }
+
+    const T &operator*() const {
+      if (ptr == nullptr)
+        throw "invalid";
+      return ptr->val;
+    }
+
+    const T *operator->() const noexcept {
+      if (ptr == nullptr)
+        throw "invalid";
+      return &(ptr->val);
+    }
+
+    bool operator==(const const_iterator &rhs) const { return ptr == rhs.ptr; }
+
+    bool operator!=(const const_iterator &rhs) const { return ptr != rhs.ptr; }
+  };
+
+  const_iterator cbegin() const { return const_iterator(this, head); }
+
+  const_iterator cend() const { return const_iterator(this, nullptr); }
+  iterator get_tail() const { return iterator(tail); }
+
   /**
    * return an iterator to the beginning
    */
@@ -209,15 +286,21 @@ public:
     node *p = pos.ptr;
     node *prev = p->prev;
     node *next = p->next;
-    if (prev != nullptr)
-      prev->next = next;
-    if (next != nullptr) {
-      next->prev = prev;
-      return iterator(this, next);
-    }
-    return end();
-  }
 
+    if (prev)
+      prev->next = next;
+    else
+      head = next;
+    if (next)
+      next->prev = prev;
+    else
+      tail = prev;
+
+    delete p; // 释放被删除节点的内存
+    size--;   // 更新链表长度
+
+    return (next) ? iterator(this, next) : end();
+  }
   /**
    * the following are operations of double list
    */
@@ -263,12 +346,23 @@ public:
    * if didn't contain anything, return true,
    * otherwise false.
    */
-  bool empty() {
+  bool empty() const {
     if (size == 0)
       return true;
     return false;
   }
+  void clear() {
+    node *cur = head;
+    while (cur) {
+      node *tmp = cur;
+      cur = cur->next;
+      delete tmp;
+    }
+    size = 0;
+    head = tail = nullptr;
+  }
 };
+
 /******************************/
 template <class Key, class T, class Hash = std::hash<Key>,
           class Equal = std::equal_to<Key>>
@@ -288,7 +382,7 @@ public:
         : kv(kv), next(next), prev(prev) {}
 
     node(const node &other) = default;
-    node &operator=(const node &other) = delete; // 禁止拷贝赋值
+    node &operator=(const node &other) = delete;
     node &operator=(node &&other) noexcept {
       next = other.next;
       prev = other.prev;
@@ -338,16 +432,6 @@ public:
     hashmap *hm;
     int idx = -1;
 
-  public:
-    /**
-     * elements
-     * add whatever you want
-     */
-    // --------------------------
-    /**
-     * the follows are constructors and destructors
-     * you can also add some if needed.
-     */
     iterator(hashmap *hm = nullptr, int idx = -1) : hm(hm), idx(idx) {}
     iterator(const iterator &t) = default;
     ~iterator() = default;
@@ -442,6 +526,7 @@ public:
         return sjtu::pair<iterator, bool>(iterator(this, i), false);
       }
     }
+
     data.push_back(node(value_pair, hash_table[idx]));
     hash_table[idx] = data.size() - 1;
     size++;
@@ -471,327 +556,103 @@ public:
     return false;
   }
 };
-/******************************/
+
 template <class Key, class T, class Hash = std::hash<Key>,
           class Equal = std::equal_to<Key>>
-class linked_hashmap : public hashmap<Key, T, Hash, Equal> {
+class linked_hashmap {
 public:
-  typedef pair<const Key, T> value_type;
+  using value_type = sjtu::pair<const Key, T>;
+  using iterator = typename double_list<value_type>::iterator;
+  using const_iterator = typename double_list<value_type>::const_iterator;
+
+private:
   double_list<value_type> dl;
-  /**
-   * elements
-   * add whatever you want
-   */
-  // --------------------------
-  class const_iterator;
-  class iterator {
-  public:
-    linked_hashmap *lhm;
-    int idx;
-    /**
-     * elements
-     * add whatever you want
-     */
-    // --------------------------
-    iterator(linked_hashmap *lhm = nullptr, int idx = -1)
-        : lhm(lhm), idx(idx) {}
-    iterator(const iterator &other) {
-      if (this == &other)
-        return;
-      lhm = other.lhm;
-      idx = other.idx;
-    }
-    ~iterator() = default;
+  hashmap<Key, iterator, Hash, Equal> mapp; // 存储 {key, 对应链表迭代器}
 
-    /**
-     * iter++
-     */
-    iterator operator++(int) {
-      iterator temp = *this;
-      if (lhm == nullptr || idx == -1) // 确保迭代器有效
-        throw std::out_of_range("Iterator is invalid.");
-      idx = lhm->data[idx].next;
-      return temp;
-    }
-
-    /**
-     * ++iter
-     */
-    iterator &operator++() {
-      iterator temp = *this;
-      if (lhm == nullptr || idx == -1)
-        throw "invalid";
-      idx = lhm->data[idx].next;
-      return *this;
-    }
-    /**
-     * iter--
-     */
-    iterator operator--(int) {
-      iterator temp = *this;
-      if (idx == -1)
-        throw "invalid";
-      idx = lhm->data[idx].prev;
-      return temp;
-    }
-    /**
-     * --iter
-     */
-    iterator &operator--() {
-      iterator temp = *this;
-      if (idx == -1)
-        throw "invalid";
-      idx = lhm->data[idx].prev;
-      return *this;
-    }
-
-    /**
-     * if the iter didn't point to a value
-     * throw "star invalid"
-     */
-    value_type &operator*() const { return lhm->data[idx].kv; }
-    value_type *operator->() const noexcept { return &(lhm->data[idx].kv); }
-
-    /**
-     * operator to check whether two iterators are same (pointing to the same
-     * memory).
-     */
-    bool operator==(const iterator &rhs) const {
-      return lhm == rhs.lhm && idx == rhs.idx;
-    }
-    bool operator!=(const iterator &rhs) const { return !(*this == rhs); }
-    bool operator==(const const_iterator &rhs) const {
-      return lhm == rhs.lhm && idx == rhs.idx;
-    }
-    bool operator!=(const const_iterator &rhs) const { return !(*this == rhs); }
-  };
-
-  class const_iterator {
-  public:
-    const linked_hashmap *lhm; // 修改为 const，避免非 const 操作
-    int idx;
-
-    // 新增构造函数
-    const_iterator(const linked_hashmap *lhm, int idx) : lhm(lhm), idx(idx) {}
-
-    const_iterator(const iterator &other) {
-      lhm = other.lhm;
-      idx = other.idx;
-    }
-    const_iterator() : lhm(nullptr), idx(-1) {}
-
-    // 其他成员函数保持不变
-    const_iterator operator++(int) {
-      if (lhm == nullptr || idx == -1)
-        throw "invalid";
-      const_iterator temp = *this;
-      idx = lhm->data[idx].next;
-      return temp;
-    }
-
-    const_iterator &operator++() {
-      if (lhm == nullptr || idx == -1)
-        throw "invalid";
-      idx = lhm->data[idx].next;
-      return *this;
-    }
-
-    const_iterator operator--(int) {
-      if (lhm == nullptr || idx == -1)
-        throw "invalid";
-      const_iterator temp = *this;
-      idx = lhm->data[idx].prev;
-      return temp;
-    }
-
-    const_iterator &operator--() {
-      if (lhm == nullptr || idx == -1)
-        throw "invalid";
-      idx = lhm->data[idx].prev;
-      return *this;
-    }
-
-    const value_type &operator*() const {
-      if (lhm == nullptr || idx == -1)
-        throw "star invalid";
-      return lhm->data[idx].kv;
-    }
-
-    const value_type *operator->() const noexcept {
-      if (lhm == nullptr || idx == -1)
-        throw "star invalid";
-      return &(lhm->data[idx].kv);
-    }
-
-    bool operator==(const iterator &rhs) const {
-      return lhm == rhs.lhm && idx == rhs.idx;
-    }
-
-    bool operator!=(const iterator &rhs) const { return !(*this == rhs); }
-
-    bool operator==(const const_iterator &rhs) const {
-      return lhm == rhs.lhm && idx == rhs.idx;
-    }
-
-    bool operator!=(const const_iterator &rhs) const { return !(*this == rhs); }
-  };
-
-  linked_hashmap() : dl(double_list<value_type>(0, nullptr, nullptr)) {}
-  linked_hashmap(const linked_hashmap &other)
-      : hashmap<Key, T, Hash, Equal>(other), dl(other.dl) {}
-  ~linked_hashmap() = default;
+public:
+  linked_hashmap() {};
+  linked_hashmap(const linked_hashmap &other) : mapp(other.mapp) {
+    for (auto it = other.dl.cbegin(); it != other.dl.cend(); ++it)
+      dl.insert_tail(*it);
+  }
   linked_hashmap &operator=(const linked_hashmap &other) {
-    if (this == &other)
-      return *this;
-    hashmap<Key, T, Hash, Equal>::operator=(other);
-    dl = other.dl;
+    if (this != &other) {
+      clear();
+      for (auto it = other.dl.cbegin(); it != other.dl.cend(); ++it)
+        insert(*it);
+    }
     return *this;
   }
+  ~linked_hashmap() { clear(); }
 
-  /**
-   * return the value connected with the Key(O(1))
-   * if the key not found, throw
-   */
   T &at(const Key &key) {
-    auto it = this->find(key);
-    if (it.idx == -1)
-      throw "invalid";
-    return dl.data[it].kv.second;
+    auto it = mapp.find(key);
+    if (it == mapp.end())
+      throw std::out_of_range("Key not found");
+    return it->second->second;
   }
   const T &at(const Key &key) const {
-    auto it = this->find(key);
-    if (it == -1)
-      throw "invalid";
-    return dl.data[it].kv.second;
+    auto it = mapp.find(key);
+    if (it == mapp.end())
+      throw std::out_of_range("Key not found");
+    return it->second->second;
   }
   T &operator[](const Key &key) {
-    auto it = hashmap<Key, T, Hash, Equal>::find(key);
-    if (it == hashmap<Key, T, Hash, Equal>::end()) {
-      auto res = hashmap<Key, T, Hash, Equal>::insert(value_type(key, T()));
-      dl.insert_head(*res.first);
-      return res.first->second;
-    }
-    return it->second;
+    auto it = mapp.find(key);
+    if (it == mapp.end())
+      throw std::out_of_range("Key not found");
+    return it->second->second;
   }
-  const T &operator[](const Key &key) const {
-    auto it = this->find(key);
-    if (it == this->end())
-      throw "invalid";
-    return it->second;
-  }
+  const T &operator[](const Key &key) const { return at(key); }
 
-  /**
-   * return an iterator point to the first
-   * inserted and existed element
-   */
-  iterator begin() {
-    if (dl.head == nullptr)
-      return iterator(this, -1);
-    return iterator(this, 0);
-  }
-  const_iterator cbegin() const {
-    if (dl.head == nullptr)
-      return const_iterator(this, -1);
-    return const_iterator(this, 0);
-  }
-  /**
-   * return an iterator after the last inserted element
-   */
-  iterator end() {
-    if (dl.tail == nullptr)
-      return iterator(this, -1);
-    return iterator(const_cast<linked_hashmap *>(this), dl.size - 1);
-  }
-  const_iterator cend() const {
-    if (dl.tail == nullptr)
-      return const_iterator(this, -1);
-    return const_iterator(this, dl.size - 1);
-  }
-  /**
-   * if didn't contain anything, return true,
-   * otherwise false.
-   */
-  bool empty() const {
-    if (dl.size == 0)
-      return true;
-    return false;
-  }
+  iterator begin() { return dl.begin(); }
+  const_iterator cbegin() const { return dl.cbegin(); }
+  iterator end() { return dl.end(); }
+  const_iterator cend() const { return dl.cend(); }
+
+  bool empty() const { return dl.empty(); }
+  size_t size() const { return dl.size; }
 
   void clear() {
-    // 清空 hashmap 中的数据
-    hashmap<Key, T, Hash, Equal>::clear();
-
-    // 清空 double_list 中的数据
-    while (dl.head != nullptr) {
-      auto temp = dl.head;
-      dl.head = dl.head->next;
-      delete temp;
-    }
-
-    // 重置 double_list 的状态
-    dl.size = 0;
-    dl.head = nullptr;
-    dl.tail = nullptr;
+    dl.clear();
+    mapp.clear();
   }
 
-  size_t size() const { return dl.size; }
-  /**
-   * insert the value_pair
-   * if the key of the value_pair exists in the map
-   * update the value instead of adding a new element，
-   * then the order of the element moved from inner of the
-   * list to the head of the list
-   * and return false
-   * if the key of the value_pair doesn't exist in the map
-   * add a new element and return true
-   */
-  pair<iterator, bool> insert(const value_type &value) {
-    iterator it = this->find(value.first);
-    if (it != this->end()) {
-      int temp = it.idx;
-      dl.erase(dl.begin() + temp);
-      dl.insert_head(value);
-      return {iterator(this, 0), false};
+  sjtu::pair<iterator, bool> insert(const value_type &value) {
+    auto it = mapp.find(value.first);
+    if (it != mapp.end()) {
+      dl.erase(it->second);
+      dl.insert_tail(value);
+      auto new_pos = dl.get_tail();
+      it->second = new_pos;
+      return {iterator(new_pos), false};
+    } else {
+      dl.insert_tail(value);
+      auto lit = dl.get_tail();
+      mapp.insert({value.first, lit});
+      return {iterator(lit), true};
     }
-    auto res = hashmap<Key, T, Hash, Equal>::insert(value);
-    dl.insert_head(value);
-    return {iterator(this, 0), true};
   }
-  /**
-   * erase the value_pair pointed by the iterator
-   * if the iterator points to nothing
-   * throw
-   */
+
   void remove(iterator pos) {
-    if (pos.idx == -1)
-      throw "invalid";
-    hashmap<Key, T, Hash, Equal>::remove(pos->first);
-    dl.erase(dl.begin() + pos.idx);
+    if (pos == end())
+      throw std::out_of_range("Iterator out of range");
+    mapp.remove(pos->first);
+    dl.erase(pos);
   }
-  /**
-   * return how many value_pairs consist of key
-   * this should only return 0 or 1
-   */
-  size_t count(const Key &key) const {
-    iterator it = const_cast<linked_hashmap *>(this)->find(key);
-    if (it == this->cend())
+
+  size_t count(const Key &key) {
+    auto it = mapp.find(key);
+    if (it == mapp.end())
       return 0;
     return 1;
   }
-  /**
-   * find the iterator points at the value_pair
-   * which consist of key
-   * if not find, return the iterator
-   * point at nothing
-   */
   iterator find(const Key &key) {
-    auto it = hashmap<Key, T, Hash, Equal>::find(key);
-    if (it == hashmap<Key, T, Hash, Equal>::end())
-      return iterator(this, -1);
-    return iterator(this, it.idx);
+    auto it = mapp.find(key);
+    return it != mapp.end() ? it->second : end();
   }
-}; // namespace sjtu
-/******************************/
+};
+
 class lru {
   using lmap = sjtu::linked_hashmap<Integer, Matrix<int>, Hash, Equal>;
   using value_type = sjtu::pair<const Integer, Matrix<int>>;
@@ -812,7 +673,7 @@ public:
     if (it != lhm.end()) {
       lhm.remove(it); // 先删除旧的，再插入新的
     } else if (lhm.size() >= n) {
-      lhm.remove(--lhm.end()); // 容量满了，删除最久未使用的（链表尾部）
+      lhm.remove(lhm.begin()); // 容量满了，删除最久未使用的（链表尾部）
     }
     lhm.insert(v); // 插入到链表头部
   }
@@ -826,10 +687,10 @@ public:
     if (it == lhm.end())
       return nullptr;
 
-    Matrix<int> *val = &(it->second);
-    lhm.remove(it);        // 先删除
-    lhm.insert({v, *val}); // 再插入到链表头部
-    return val;
+    auto val = it->second;
+    lhm.remove(it);       // 先删除
+    lhm.insert({v, val}); // 再插入到链表头部
+    return &(lhm.find(v)->second);
   }
   /**
    * just print everything in the memory
@@ -838,12 +699,11 @@ public:
    * change the order.
    */
   void print() {
-    sjtu::linked_hashmap<Integer, Matrix<int>, Hash, Equal>::iterator it;
-    for (it = lhm.begin(); it != lhm.end(); ++it) {
-      std::cout << it->first.val << "␣" << it->second << std::endl;
+    for (auto it = lhm.begin(); it != lhm.end(); ++it) {
+      std::cout << it->first.val << " " << it->second << std::endl;
     }
   }
 };
-} // namespace sjtu
+}; // namespace sjtu
 
 #endif
