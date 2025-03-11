@@ -19,7 +19,7 @@ public:
     return lhs.val == rhs.val;
   }
 };
-/******************************/
+
 namespace sjtu {
 template <class T> class double_list {
 private:
@@ -166,7 +166,7 @@ public:
       return ptr != rhs.ptr;
     }
   };
-
+  //  double_list also uses const interator, for the linked_hashmap
   class const_iterator {
   public:
     const double_list *dl; // 关联的双向链表
@@ -249,37 +249,19 @@ public:
 
     bool operator!=(const const_iterator &rhs) const { return ptr != rhs.ptr; }
   };
-
+  // begin() and end()
   const_iterator cbegin() const { return const_iterator(this, head); }
 
   const_iterator cend() const { return const_iterator(this, nullptr); }
-  iterator get_tail() const { return iterator(tail); }
 
-  /**
-   * return an iterator to the beginning
-   */
   iterator begin() {
     if (head == nullptr)
       return iterator(this, nullptr);
     return iterator(this, head);
   }
-  /**
-   * return an iterator to the ending
-   * in fact, it returns the iterator point to nothing,
-   * just after the last element.
-   */
   iterator end() { return iterator(this, nullptr); }
-  /**
-   * if the iter didn't point to anything, do nothing,
-   * otherwise, delete the element pointed by the iter
-   * and return the iterator point at the same "index"
-   * e.g.
-   * 	if the origin iterator point at the 2nd element
-   * 	the returned iterator also point at the
-   *  2nd element of the list after the operation
-   *  or nothing if the list after the operation
-   *  don't contain 2nd elememt.
-   */
+
+  iterator get_tail() const { return iterator(tail); }
   iterator erase(iterator pos) {
     if (pos.ptr == nullptr)
       return end();
@@ -342,10 +324,7 @@ public:
     delete temp;
     size--;
   }
-  /**
-   * if didn't contain anything, return true,
-   * otherwise false.
-   */
+
   bool empty() const {
     if (size == 0)
       return true;
@@ -363,7 +342,6 @@ public:
   }
 };
 
-/******************************/
 template <class Key, class T, class Hash = std::hash<Key>,
           class Equal = std::equal_to<Key>>
 class hashmap {
@@ -446,9 +424,6 @@ public:
       return hm->data[idx].kv;
     }
 
-    /**
-     * other operation
-     */
     value_type *operator->() const noexcept { return &(operator*()); }
     bool operator==(const iterator &rhs) const {
       if (this == &rhs)
@@ -496,14 +471,9 @@ public:
     data = std::move(new_data);
   }
 
-  /**
-   * the iterator point at nothing
-   */
+  // return the end()
   iterator end() const { return iterator(const_cast<hashmap *>(this), -1); }
-  /**
-   * find, return a pointer point to the value
-   * not find, return the end (point to nothing)
-   */
+
   iterator find(const Key &key) const {
     size_t idx = get_index(key);
     for (int i = hash_table[idx]; i != -1; i = data[i].next) {
@@ -512,12 +482,8 @@ public:
     }
     return end();
   }
-  /**
-   * already have a value_pair with the same key
-   * -> just update the value, return false
-   * not find a value_pair with the same key
-   * -> insert the value_pair, return true
-   */
+
+  // O(1) find, expand when neccesary
   sjtu::pair<iterator, bool> insert(const value_type &value_pair) {
     size_t idx = get_index(value_pair.first);
     for (int i = hash_table[idx]; i != -1; i = data[i].next) {
@@ -536,10 +502,7 @@ public:
 
     return sjtu::pair<iterator, bool>(iterator(this, data.size() - 1), true);
   }
-  /**
-   * the value_pair exists, remove and return true
-   * otherwise, return false
-   */
+
   bool remove(const Key &key) {
     size_t idx = get_index(key);
 
@@ -562,6 +525,8 @@ template <class Key, class T, class Hash = std::hash<Key>,
 class linked_hashmap {
 public:
   using value_type = sjtu::pair<const Key, T>;
+
+  // using iterator of double_list
   using iterator = typename double_list<value_type>::iterator;
   using const_iterator = typename double_list<value_type>::const_iterator;
 
@@ -617,7 +582,7 @@ public:
     dl.clear();
     mapp.clear();
   }
-
+  // similar to previous function
   sjtu::pair<iterator, bool> insert(const value_type &value) {
     auto it = mapp.find(value.first);
     if (it != mapp.end()) {
@@ -673,7 +638,7 @@ public:
     if (it != lhm.end()) {
       lhm.remove(it); // 先删除旧的，再插入新的
     } else if (lhm.size() >= n) {
-      lhm.remove(lhm.begin()); // 容量满了，删除最久未使用的（链表尾部）
+      lhm.remove(lhm.begin()); // 容量满了，删除最久未使用的(链表头部)
     }
     lhm.insert(v); // 插入到链表头部
   }
@@ -692,12 +657,7 @@ public:
     lhm.insert({v, val}); // 再插入到链表头部
     return &(lhm.find(v)->second);
   }
-  /**
-   * just print everything in the memory
-   * to debug or test.
-   * this operation follows the order, but don't
-   * change the order.
-   */
+
   void print() {
     for (auto it = lhm.begin(); it != lhm.end(); ++it) {
       std::cout << it->first.val << " " << it->second << std::endl;
